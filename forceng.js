@@ -18,7 +18,7 @@ angular.module('forceng', [])
 
     // The force.com API version to use.
     // To override default, pass apiVersion in init(props)
-      apiVersion = 'v36.0',
+      apiVersion = 'v39.0',
 
     // Keep track of OAuth data (access_token, refresh_token, and instance_url)
       oauth,
@@ -51,9 +51,9 @@ angular.module('forceng', [])
 
     // Reference to the Salesforce OAuth plugin
       oauthPlugin,
-		
+    
     // Reference to the Salesforce Network plugin
-      networkPlugin,		
+      networkPlugin,    
 
     // Whether or not to use a CORS proxy. Defaults to false if app running in Cordova or in a VF page
     // Can be overriden in init()
@@ -145,13 +145,13 @@ angular.module('forceng', [])
         url: url,
         params: params
       })
-        .success(function (data, status, headers, config) {
+        .then(function (data, status, headers, config) {
           console.log('Token refreshed');
           oauth.access_token = data.access_token;
           tokenStore.forceOAuth = JSON.stringify(oauth);
           deferred.resolve();
-        })
-        .error(function (data, status, headers, config) {
+        },
+        function (data, status, headers, config) {
           console.log('Error while trying to refresh token');
           deferred.reject();
         });
@@ -267,7 +267,7 @@ angular.module('forceng', [])
     function loginWithPlugin() {
       document.addEventListener("deviceready", function () {
         oauthPlugin = cordova.require("com.salesforce.plugin.oauth");
-		networkPlugin = cordova.require("com.salesforce.plugin.network");
+        networkPlugin = cordova.require("com.salesforce.plugin.network");
         if (!oauthPlugin) {
           console.error('Salesforce Mobile SDK OAuth plugin not available');
           if (deferredLogin) deferredLogin.reject({status: 'Salesforce Mobile SDK OAuth plugin not available'});
@@ -286,7 +286,7 @@ angular.module('forceng', [])
         );
       }, false);
     }
-	
+  
     function loginWithBrowser() {
       console.log('loginURL: ' + loginURL);
       console.log('oauthCallbackURL: ' + oauthCallbackURL);
@@ -357,14 +357,14 @@ angular.module('forceng', [])
      */
     function request(obj) {
         // NB: networkPlugin will be defined only if login was done through plugin and container is using Mobile SDK 5.0 or above
-		// turn off CordovaNetwork request, because file:// and CORS issue in iOS10.
+    // turn off CordovaNetwork request, because file:// and CORS issue in iOS10.
         if (false && networkPlugin) { 
             return requestWithPlugin(obj);
         } else {
             return requestWithBrowser(obj);
-        }		
+        }   
     }
-	
+  
     /**
      * @param path: full path or path relative to end point - required
      * @param endPoint: undefined or endpoint - optional
@@ -387,24 +387,24 @@ angular.module('forceng', [])
                 return {endPoint: '', path:path};
             }
         }
-    }	
-	
+    } 
+  
     function requestWithPlugin(obj) {
-		var deferred = $q.defer();
-		
+    var deferred = $q.defer();
+    
         var obj2 = computeEndPointIfMissing(obj.endPoint, obj.path);
         networkPlugin.sendRequest(obj2.endPoint, obj2.path, function(data){
-			//success
-			deferred.resolve(data);
-		}, function(error){
-			//failure
-			deferred.reject(error);
-		}, obj.method, obj.data || obj.params, obj.headerParams);    
-		
-		return deferred.promise;	
-    }	
-	
-	function requestWithBrowser(obj) {
+      //success
+      deferred.resolve(data);
+    }, function(error){
+      //failure
+      deferred.reject(error);
+    }, obj.method, obj.data || obj.params, obj.headerParams);    
+    
+    return deferred.promise;  
+    } 
+  
+  function requestWithBrowser(obj) {
       var method = obj.method || 'GET',
         headers = {},
         url = getRequestBaseURL(),
@@ -438,10 +438,9 @@ angular.module('forceng', [])
         data: obj.data,
         timeout: 30000
       })
-        .success(function (data, status, headers, config) {
+        .then(function (data, status, headers, config) {
           deferred.resolve(data);
-        })
-        .error(function (data, status, headers, config) {
+        }, function (data, status, headers, config) {
           if ((status === 401 || status === 403) && oauth.refresh_token) {
             refreshToken()
               .then(function () {
@@ -453,7 +452,7 @@ angular.module('forceng', [])
                 });
               }, function(){
                 console.error(data);
-                deferred.reject(data);                
+                deferred.reject(data);
             });
           } else {
               if (!data) {
@@ -461,7 +460,7 @@ angular.module('forceng', [])
                       'errorCode': 'Request Error',
                       'message': 'Can\'t connect to the server. Please try again!'
 
-                 }]
+                 }];
               }
 
             deferred.reject(data);
@@ -469,8 +468,8 @@ angular.module('forceng', [])
 
         });
 
-      return deferred.promise;		
-	}
+      return deferred.promise;    
+  }
 
     /**
      * Execute SOQL query
@@ -630,7 +629,7 @@ angular.module('forceng', [])
     }
     
     function getURLs() {
-    	return {proxyURL:proxyURL,oauthCallbackURL:oauthCallbackURL, useProxy: useProxy};
+      return {proxyURL:proxyURL,oauthCallbackURL:oauthCallbackURL, useProxy: useProxy};
     }
 
     // The public API
