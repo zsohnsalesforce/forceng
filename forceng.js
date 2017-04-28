@@ -390,21 +390,21 @@ angular.module('forceng', [])
     } 
   
     function requestWithPlugin(obj) {
-    var deferred = $q.defer();
-    
-        var obj2 = computeEndPointIfMissing(obj.endPoint, obj.path);
-        networkPlugin.sendRequest(obj2.endPoint, obj2.path, function(data){
-      //success
-      deferred.resolve(data);
-    }, function(error){
-      //failure
-      deferred.reject(error);
-    }, obj.method, obj.data || obj.params, obj.headerParams);    
-    
-    return deferred.promise;  
-    } 
-  
-  function requestWithBrowser(obj) {
+      var deferred = $q.defer();
+      var obj2 = computeEndPointIfMissing(obj.endPoint, obj.path);
+
+      networkPlugin.sendRequest(obj2.endPoint, obj2.path, function(data){
+        //success
+        deferred.resolve(data);
+      }, function(error){
+        //failure
+        deferred.reject(error);
+      }, obj.method, obj.data || obj.params, obj.headerParams);    
+      
+      return deferred.promise;  
+      }
+
+    function requestWithBrowser(obj) {
       var method = obj.method || 'GET',
         headers = {},
         url = getRequestBaseURL(),
@@ -437,8 +437,7 @@ angular.module('forceng', [])
         params: obj.params,
         data: obj.data,
         timeout: 30000
-      })
-        .then(function (data, status, headers, config) {
+      }).then(function (data, status, headers, config) {
           deferred.resolve(data);
         }, function (data, status, headers, config) {
           if ((status === 401 || status === 403) && oauth.refresh_token) {
@@ -468,7 +467,7 @@ angular.module('forceng', [])
 
         });
 
-      return deferred.promise;    
+      return deferred.promise;
   }
 
     /**
