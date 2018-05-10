@@ -37,7 +37,7 @@ angular.module('forceng', [])
 
     // Only required when using REST APIs in an app hosted on your own server to avoid cross domain policy issues
     // To override default, pass proxyURL in init(props)
-      proxyURL = baseURL,
+      proxyURL,
 
     // if page URL is http://localhost:3000/myapp/index.html, oauthCallbackURL is http://localhost:3000/myapp/oauthcallback.html
     // To override default, pass oauthCallbackURL in init(props)
@@ -67,7 +67,7 @@ angular.module('forceng', [])
       var url;
 
       if (useProxy) {
-        url = proxyURL;
+        url = proxyURL || baseURL;
       } else if (oauth && oauth.instance_url) {
         url = oauth.instance_url;
       } else {
@@ -204,11 +204,40 @@ angular.module('forceng', [])
           if (!oauth) oauth = {};
           oauth.instance_url = params.instance_url;            
         }
+
+        if(!oauth.instance_url) {
+          // location.hostname can be of the form 'abc.na1.visual.force.com',
+          // 'na1.salesforce.com' or 'abc.my.salesforce.com' (custom domains). 
+          // Split on '.', and take the [1] or [0] element as appropriate
+          var elements = location.hostname.split("."),
+              instance = null;
+          if (elements.length === 4 && elements[1] === 'my') {
+              instance = elements[0] + '.' + elements[1];
+          } else if (elements.length === 3) {
+              instance = elements[0];
+          } else {
+              instance = elements[1];
+          }
+
+          oauth.instance_url = "https://" + instance + ".salesforce.com";
+        }
           
         if (params.refreshToken) {
           if (!oauth) oauth = {};
           oauth.refresh_token = params.refreshToken;
         }
+
+        // imitating similar approach by forcetk to handle apex rest inside org
+        if (proxyURL === undefined || proxyURL === null) {
+          if (location.protocol === 'file:' || location.protocol === 'ms-appx:') {
+              // In PhoneGap
+              proxyURL = null;
+          } else {
+              // In Visualforce - still need proxyUrl for Apex REST methods
+              proxyURL = "https://" + location.hostname + "/services/proxy";
+          }
+        }
+
       }
 
       console.log("useProxy: " + useProxy);
@@ -430,10 +459,17 @@ angular.module('forceng', [])
         headers["Target-URL"] = oauth.instance_url;
       }
 
+      //handle apexrest inside org
+      if (proxyURL !== null && !useProxy) {
+        headers['SalesforceProxy-Endpoint'] = url;
+      }
+
+      headers['X-User-Agent'] = 'salesforce-toolkit-rest-javascript/' + apiVersion;
+
       $http({
         headers: headers,
         method: method,
-        url: url,
+        url: useProxy ? url : proxyURL,
         params: obj.params,
         data: obj.data,
         timeout: 30000
@@ -483,6 +519,21 @@ angular.module('forceng', [])
       });
 
     }
+
+     /**
+     * Execute SOSL Query
+     * @param sosl
+     * @returns {*}
+     */
+    function search(sosl) {
+
+      return request({
+        path: '/services/data/' + apiVersion + '/search',
+        params: {q: sosl}
+      });
+
+    }
+
 
     /**
      * Retrieve a record based on its Id
@@ -651,7 +702,8 @@ angular.module('forceng', [])
       discardToken: discardToken,
       oauthCallback: oauthCallback,
       requestBaseURL:getRequestBaseURL,
-      getURLs: getURLs
+      getURLs: getURLs,
+      search:search
     };
 
   });
