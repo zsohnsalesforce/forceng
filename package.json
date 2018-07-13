@@ -1,0 +1,23 @@
+{
+  "name": "forceng",
+  "version": "0.6.0",
+  "description": "Micro-Library to use Salesforce REST API in AngularJS apps",
+  "main": "forceng.js",
+  "directories": {
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vlocityinc/forceng.git"
+  },
+  "keywords": [
+  ],
+  "author": "OSREC <info@osrec.co.uk>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/vlocityinc/forceng/issues"
+  },
+  "homepage": "https://github.com/vlocityinc/forceng#readme"
+}
