@@ -239,7 +239,9 @@ angular.module('forceng', [])
               proxyURL = null;
           } else {
               // In Visualforce - still need proxyUrl for Apex REST methods
-              proxyURL = "https://" + location.hostname + "/services/proxy";
+              proxyURL = "https://" + location.hostname
+                    + location.pathname.replace(/apex\/\w+/, "").replace(/\/$/, "")
+                    + "/services/proxy";
           }
         }
 
