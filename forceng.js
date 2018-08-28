@@ -55,6 +55,9 @@ angular.module('forceng', [])
     // Reference to the Salesforce Network plugin
       networkPlugin,    
 
+    // Flag for isVisualforce
+      visualforce = false,
+
     // Whether or not to use a CORS proxy. Defaults to false if app running in Cordova or in a VF page
     // Can be overriden in init()
       useProxy = (window.cordova || window.SfdcApp) ? false : true;
@@ -205,7 +208,9 @@ angular.module('forceng', [])
           oauth.instance_url = params.instance_url;            
         }
 
-        if(!oauth.instance_url) {
+        if(!(oauth && oauth.instance_url)) {
+            if (!oauth) oauth = {};
+            visualforce = true;
           // location.hostname can be of the form 'abc.na1.visual.force.com',
           // 'na1.salesforce.com' or 'abc.my.salesforce.com' (custom domains). 
           // Split on '.', and take the [1] or [0] element as appropriate
@@ -234,7 +239,9 @@ angular.module('forceng', [])
               proxyURL = null;
           } else {
               // In Visualforce - still need proxyUrl for Apex REST methods
-              proxyURL = "https://" + location.hostname + "/services/proxy";
+              proxyURL = "https://" + location.hostname
+                    + location.pathname.replace(/apex\/\w+/, "").replace(/\/$/, "")
+                    + "/services/proxy";
           }
         }
 
@@ -433,78 +440,80 @@ angular.module('forceng', [])
       return deferred.promise;  
       }
 
-    function requestWithBrowser(obj) {
-      var method = obj.method || 'GET',
-        headers = {},
-        url = getRequestBaseURL(),
-        deferred = $q.defer();
-
-      if (!oauth || (!oauth.access_token && !oauth.refresh_token)) {
-        deferred.reject('No access token. Login and try again.');
+      function requestWithBrowser(obj) {
+        var method = obj.method || 'GET',
+          headers = {},
+          url = getRequestBaseURL(),
+          deferred = $q.defer();
+  
+        if(!useProxy && (!oauth || (!oauth.access_token && !oauth.refresh_token))) {
+          deferred.reject('No access token. Login and try again.');
+          return deferred.promise;
+        }
+  
+        // dev friendly API: Add leading '/' if missing so url + path concat always works
+        if (obj.path.charAt(0) !== '/') {
+          obj.path = '/' + obj.path;
+        }
+  
+        url = url + obj.path;
+  
+        if(oauth && oauth.access_token){
+           headers["Authorization"] = "Bearer " + oauth.access_token;   
+        }
+        if (obj.contentType) {
+          headers["Content-Type"] = obj.contentType;
+        }
+        if (useProxy && oauth && oauth.instance_url) {
+          headers["Target-URL"] = oauth.instance_url;
+        }
+  
+        //handle apexrest inside org
+        if (proxyURL !== null && !useProxy) {
+          headers['SalesforceProxy-Endpoint'] = url;
+        }
+  
+        headers['X-User-Agent'] = 'salesforce-toolkit-rest-javascript/' + apiVersion;
+  
+        $http({
+          headers: headers,
+          method: method,
+          url: (useProxy || !visualforce) ? url : proxyURL,
+          params: obj.params,
+          data: obj.data,
+          timeout: 30000
+        }).then(function (data, status, headers, config) {
+            deferred.resolve(data);
+          }, function (data, status, headers, config) {
+            if ((status === 401 || status === 403) && oauth.refresh_token) {
+              refreshToken()
+                .then(function () {
+                  // Try again with the new token
+                  requestWithBrowser(obj).then(function(data) {
+                      deferred.resolve(data);
+                  }, function(error){
+                      deferred.reject(error);
+                  });
+                }, function(){
+                  console.error(data);
+                  deferred.reject(data);
+              });
+            } else {
+                if (!data) {
+                  data = [{
+                        'errorCode': 'Request Error',
+                        'message': 'Can\'t connect to the server. Please try again!'
+  
+                   }];
+                }
+  
+              deferred.reject(data);
+            }
+  
+          });
+  
         return deferred.promise;
-      }
-
-      // dev friendly API: Add leading '/' if missing so url + path concat always works
-      if (obj.path.charAt(0) !== '/') {
-        obj.path = '/' + obj.path;
-      }
-
-      url = url + obj.path;
-
-      headers["Authorization"] = "Bearer " + oauth.access_token;
-      if (obj.contentType) {
-        headers["Content-Type"] = obj.contentType;
-      }
-      if (useProxy && oauth.instance_url) {
-        headers["Target-URL"] = oauth.instance_url;
-      }
-
-      //handle apexrest inside org
-      if (proxyURL !== null && !useProxy) {
-        headers['SalesforceProxy-Endpoint'] = url;
-      }
-
-      headers['X-User-Agent'] = 'salesforce-toolkit-rest-javascript/' + apiVersion;
-
-      $http({
-        headers: headers,
-        method: method,
-        url: useProxy ? url : proxyURL,
-        params: obj.params,
-        data: obj.data,
-        timeout: 30000
-      }).then(function (data, status, headers, config) {
-          deferred.resolve(data);
-        }, function (data, status, headers, config) {
-          if ((status === 401 || status === 403) && oauth.refresh_token) {
-            refreshToken()
-              .then(function () {
-                // Try again with the new token
-                requestWithBrowser(obj).then(function(data) {
-                    deferred.resolve(data);
-                }, function(error){
-                    deferred.reject(error);
-                });
-              }, function(){
-                console.error(data);
-                deferred.reject(data);
-            });
-          } else {
-              if (!data) {
-                data = [{
-                      'errorCode': 'Request Error',
-                      'message': 'Can\'t connect to the server. Please try again!'
-
-                 }];
-              }
-
-            deferred.reject(data);
-          }
-
-        });
-
-      return deferred.promise;
-  }
+    }
 
     /**
      * Execute SOQL query
