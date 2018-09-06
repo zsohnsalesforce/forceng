@@ -183,6 +183,10 @@ angular.module('forceng', [])
      *  refreshToken (optional)
      */
     function init(params) {
+      // To make sure salesforce is there or not
+      if(typeof (Visualforce) != "undefined"){
+        visualforce = true;
+      }
 
       if (params) {
         appId = params.appId || appId;
@@ -210,7 +214,6 @@ angular.module('forceng', [])
 
         if(!(oauth && oauth.instance_url)) {
             if (!oauth) oauth = {};
-            visualforce = true;
           // location.hostname can be of the form 'abc.na1.visual.force.com',
           // 'na1.salesforce.com' or 'abc.my.salesforce.com' (custom domains). 
           // Split on '.', and take the [1] or [0] element as appropriate
