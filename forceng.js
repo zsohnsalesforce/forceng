@@ -446,7 +446,6 @@ angular.module('forceng', [])
       function requestWithBrowser(obj) {
         var method = obj.method || 'GET',
           headers = {},
-          url = getRequestBaseURL(),
           deferred = $q.defer();
   
         if(!useProxy && (!oauth || (!oauth.access_token && !oauth.refresh_token))) {
@@ -454,13 +453,18 @@ angular.module('forceng', [])
           return deferred.promise;
         }
   
-        // dev friendly API: Add leading '/' if missing so url + path concat always works
-        if (obj.path.charAt(0) !== '/') {
-          obj.path = '/' + obj.path;
+        if (obj.path.indexOf('https://') === 0) {
+          url = obj.path;
+        } else {
+          
+          // dev friendly API: Add leading '/' if missing so url + path concat always works
+          if (obj.path.charAt(0) !== '/') {
+            obj.path = '/' + obj.path;
+          }
+
+          url = getRequestBaseURL() + obj.path;
         }
-  
-        url = url + obj.path;
-  
+
         if(oauth && oauth.access_token){
            headers["Authorization"] = "Bearer " + oauth.access_token;   
         }
@@ -653,12 +657,14 @@ angular.module('forceng', [])
       } else {
         params = pathOrParams;
 
-        if (params.path.charAt(0) !== "/") {
-          params.path = "/" + params.path;
-        }
+        if (params.path.indexOf('https://') !== 0) {
+          if (params.path.charAt(0) !== "/") {
+            params.path = "/" + params.path;
+          }
 
-        if (params.path.substr(0, 18) !== "/services/apexrest") {
-          params.path = "/services/apexrest" + params.path;
+          if (params.path.substr(0, 18) !== "/services/apexrest") {
+            params.path = "/services/apexrest" + params.path;
+          }
         }
       }
 
